@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SankeyNode {
+  id        Int         @id @default(autoincrement())
+  chartId   Int         @map("chart_id")
+  nodeKey   String      @map("node_key")
+  title     String?
+  color     String?
+  priority  Int?
+  createdAt DateTime    @default(now()) @map("created_at")
+  chart     SankeyChart @relation(fields: [chartId], references: [id], onDelete: Cascade)
+  fromLinks SankeyLink[] @relation("FromNode")
+  toLinks   SankeyLink[] @relation("ToNode")
+
+  @@unique([chartId, nodeKey])
+  @@map("sankey_nodes")
+}
+
+model SankeyLink {
+  id        Int         @id @default(autoincrement())
+  chartId   Int         @map("chart_id")
+  fromNode  String      @map("from_node")
+  toNode    String      @map("to_node")
+  flow      Float       @default(1)
+  createdAt DateTime    @default(now()) @map("created_at")
+  chart     SankeyChart @relation(fields: [chartId], references: [id], onDelete: Cascade)
+  fromNodeRel SankeyNode @relation("FromNode", fields: [chartId, fromNode], references: [chartId, nodeKey])
+  toNodeRel   SankeyNode @relation("ToNode", fields: [chartId, toNode], references: [chartId, nodeKey])
+
+  @@map("sankey_links")
+}
