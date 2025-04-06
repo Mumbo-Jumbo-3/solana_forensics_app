@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { address: string } }
-): Promise<NextResponse> {
-    const { address } = params;
+    context: { params: { address: string } }
+) {
+    const { address } = context.params;
     const backendBaseUrl = process.env.PYTHON_API_URL; // Private environment variable
     
     try {

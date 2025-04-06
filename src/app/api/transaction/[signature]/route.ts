@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { signature: string } }
-): Promise<NextResponse> {
-    const { signature } = params;
+    context: { params: { signature: string } }
+) {
+    const { signature } = context.params;
     const backendBaseUrl = process.env.PYTHON_API_URL; // Private environment variable
     
     try {
