@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 export async function GET(
     request: Request,
     { params }: { params: { address: string } }
-) {
+): Promise<NextResponse> {
     const backendBaseUrl = process.env.PYTHON_API_URL; // Private environment variable
-    const { address } = await params;
+    const address = params.address;
     
     try {
         const response = await fetch(
