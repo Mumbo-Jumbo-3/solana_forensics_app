@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
-    request: Request,
+    request: NextRequest,
     { params }: { params: { signature: string } }
 ): Promise<NextResponse> {
+    const { signature } = params;
     const backendBaseUrl = process.env.PYTHON_API_URL; // Private environment variable
-    const signature = params.signature;
     
     try {
         const response = await fetch(

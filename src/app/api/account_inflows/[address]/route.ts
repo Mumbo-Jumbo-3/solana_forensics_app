@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
-    request: Request,
+    request: NextRequest,
     { params }: { params: { address: string } }
 ): Promise<NextResponse> {
+    const { address } = params;
     const backendBaseUrl = process.env.PYTHON_API_URL; // Private environment variable
-    const address = params.address;
     
     try {
         const response = await fetch(
