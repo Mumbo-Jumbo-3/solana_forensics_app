@@ -9,11 +9,24 @@ export async function GET(
     
     try {
         const response = await fetch(
-            `${backendBaseUrl}/transaction/${signature}`
+            `${backendBaseUrl}/transaction/${signature}`,
+            {
+                headers: {
+                    'Accept': 'application/json',
+                },
+            }
         );
-        const data = await response.json();
-        console.log(data);
         
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Backend API error:', errorData);
+            return NextResponse.json(
+                { error: errorData.detail || 'Failed to fetch transaction data' },
+                { status: response.status }
+            );
+        }
+
+        const data = await response.json();
         return NextResponse.json(data);
     } catch (error) {
         return NextResponse.json(
