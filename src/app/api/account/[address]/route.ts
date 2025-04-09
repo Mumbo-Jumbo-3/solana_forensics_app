@@ -1,28 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { NetworkNode } from '@/lib/api';
 
 export async function GET(
     request: NextRequest,
-    context: { params: Promise<{ signature: string }> }
+    context: { params: Promise<{ address: string }> }
 ) {
-    const { signature } = await context.params;
-    const backendBaseUrl = process.env.PYTHON_API_URL; // Private environment variable
+    const { address } = await context.params;
+    const backendBaseUrl = process.env.PYTHON_API_URL;
     
     try {
         const response = await fetch(
-            `${backendBaseUrl}/transaction/${signature}`,
+            `${backendBaseUrl}/account/${address}`,
             {
                 headers: {
                     'Accept': 'application/json',
                 },
             }
         );
-        
         if (!response.ok) {
             const errorData = await response.json();
             console.error('Backend API error:', errorData);
             return NextResponse.json(
-                { error: errorData.detail || 'Failed to fetch transaction data' },
-                { status: response.status }
+                { error: 'Failed to fetch network data' },
+                { status: 500 }
             );
         }
 

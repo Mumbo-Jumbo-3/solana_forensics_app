@@ -1,6 +1,8 @@
 'use client'
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import cytoscape, { Core, EdgeSingular, NodeSingular, Position } from 'cytoscape';
+import popper from 'cytoscape-popper';
+import { computePosition, arrow, limitShift, flip, shift } from '@floating-ui/dom';
 import axios from 'axios';
 import { api, NetworkData } from '@/lib/api';
 
@@ -22,8 +24,6 @@ const NetworkGraph: React.FC = () => {
         return input.length >= 32 && input.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(input);
     };
 
-    const proxyBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
     const initializeCytoscape = useCallback((initialData?: NetworkData) => {
         if (!cyRef.current) return;
 
@@ -33,19 +33,27 @@ const NetworkGraph: React.FC = () => {
                 nodes: initialData.nodes.map(node => ({
                     data: {
                         id: node.pubkey,
-                        label: node.tag || `${node.pubkey.slice(0, 4)}...${node.pubkey.slice(-4)}`
+                        label: node.label || `${node.pubkey.slice(0, 4)}...${node.pubkey.slice(-4)}`,
+                        img_url: node.img_url,
+                        tags: node.tags,
+                        type: node.type
                     }
                 })),
-                edges: initialData.links.map(link => ({
+                edges: initialData.edges.map(edge => ({
                     data: {
-                        source: link.source,
-                        target: link.target,
-                        weight: Math.pow(link.value, 0.1),
-                        type: link.type,
-                        ticker: link.ticker,
-                        value: link.value,
-                        tag: link.tag,
-                        txId: link.txId
+                        source: edge.source,
+                        target: edge.target,
+                        amount: edge.amount,
+                        mint: edge.mint,
+                        label: edge.label,
+                        tokenImage: edge.tokenImage,
+                        weight: Math.pow(edge.amount, 0.1),
+                        type: edge.type,
+                        ticker: edge.ticker,
+                        value: edge.value,
+                        tags: edge.tags,
+                        txId: edge.txId,
+                        isExpandable: edge.isExpandable
                     }
                 }))
             } : { nodes: [], edges: [] },
@@ -59,7 +67,8 @@ const NetworkGraph: React.FC = () => {
                         'text-valign': 'center',
                         'text-halign': 'center',
                         'width': 40,
-                        'height': 40
+                        'height': 40,
+                        'padding': '10px'
                     }
                 },
                 {
@@ -98,25 +107,30 @@ const NetworkGraph: React.FC = () => {
                             if (type === 'fee') return '#ff69b4';
                             return ticker === 'SOL' ? '#ffff00' : '#00ffff';
                         },
+                        'line-style': (ele) => ele.data('isExpandable') ? 'dashed' : 'solid',
                     },
                 },
                 {
                     selector: 'edge.hover',
                     style: {
                         'label': (ele: any) => {
-                            const value = ele.data('value');
+                            const amount = ele.data('amount');
                             const ticker = ele.data('ticker');
-                            const tag = ele.data('tag');
-                            const formattedValue = Number(value).toLocaleString(undefined, {
+                            const label = ele.data('label');
+                            const tokenImage = ele.data('tokenImage');
+                            const formattedAmount = Number(amount).toLocaleString(undefined, {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 9
                             });
-                            return tag ? `${formattedValue} ${ticker}\n${tag}` : `${formattedValue} ${ticker}`;
+                            return label 
+                                ? `${formattedAmount} ${ticker}\n${label}`
+                                : `${formattedAmount} ${ticker}`;
                         },
                         'text-rotation': 'autorotate',
                         'text-margin-y': -15,
                         'text-wrap': 'wrap',
                         'text-max-width': '200px',
+                        'text-events': 'yes',
                         'font-size': '12px',
                         'color': '#ffffff',
                         'text-outline-color': '#000000',
@@ -144,25 +158,56 @@ const NetworkGraph: React.FC = () => {
     }, []);
 
     const setupInteractionHandlers = (cy: Core) => {
+        /*
         cy.on('dbltap', 'edge', async (evt) => {
-            const link = evt.target;
-            await expandLink(link, cy);
-        });
-
-        cy.on('tap', 'node', function(evt) {
-            const node = evt.target;
-            console.log('Clicked node:', node.id());
-        });
-
-        cy.on('tap', 'edge', function(evt) {
             const edge = evt.target;
-            console.log('Edge details:', {
-                from: edge.source().id(),
-                to: edge.target().id(),
-                value: edge.data('value'),
-                ticker: edge.data('ticker'),
-                type: edge.data('type')
-            });
+            await expandEdge(edge, cy);
+        });
+        */
+
+        cy.on('tap', 'node', async (evt) => {
+            const node = evt.target as NodeSingular;
+            const position = evt.position;
+            const nodePosition = node.position();
+            const nodeWidth = node.width();
+            const nodeHeight = node.height();
+
+            // Calculate click position relative to node center
+            const relX = position.x - nodePosition.x;
+            const relY = position.y - nodePosition.y;
+            const halfWidth = nodeWidth / 2;
+            const halfHeight = nodeHeight / 2;
+
+            // Define icon regions
+            if (Math.abs(relX) > halfWidth * 0.5 || Math.abs(relY) > halfHeight * 0.5) {
+                // Click was in icon region
+                if (relX > 0) { // Right side
+                    if (relY < 0) { // Top right
+                        console.log('Top right');
+                        await expandNode(node, cy, 'out', 'desc');
+                    } else { // Bottom right
+                        console.log('Bottom right');
+                        await expandNode(node, cy, 'out', 'asc');
+                    }
+                } else { // Left side
+                    if (relY < 0) { // Top left
+                        console.log('Top left');
+                        await expandNode(node, cy, 'in', 'desc');
+                    } else { // Bottom left
+                        console.log('Bottom left');
+                        await expandNode(node, cy, 'in', 'asc');
+                    }
+                }
+            }
+        });
+
+        cy.on('tap', 'edge', async (evt) => {
+            const edge = evt.target;
+            if (edge.data('isExpandable')) {
+                await expandEdge(edge, cy);
+                edge.data('isExpandable', false);
+                edge.style('line-style', 'solid');
+            }
         });
 
         cy.on('mouseover', 'edge', function(evt) {
@@ -174,59 +219,135 @@ const NetworkGraph: React.FC = () => {
         });
 
         cy.on('mouseover', 'node', function(evt) {
-            evt.target.addClass('hover');
+            const node = evt.target as NodeSingular;
+            node.addClass('hover');
         });
 
         cy.on('mouseout', 'node', function(evt) {
-            evt.target.removeClass('hover');
+            const node = evt.target as NodeSingular;
+            node.removeClass('hover');
         });
     };
 
-    const expandLink = async (link: EdgeSingular, cy: Core) => {
+    const expandNode = async (node: NodeSingular, cy: Core, direction: string, sort: string) => {
         try {
             setLoading(true);
-            const signature = link.data('txId');
-            
-            // Get source and target positions
-            const sourceNode = link.source();
-            const targetNode = link.target();
-            const sourcePos = sourceNode.position();
-            const targetPos = targetNode.position();
-            
-            // Fetch transaction data for this link
-            const newData = await api.getTransactionNetwork(signature);
-            
-            // Lock existing nodes
+            const account = node.id();
+    
+            // Get position of the source node
+            const nodePos = node.position();
+            const radius = 150; // Distance from center node
+    
+            const newData = await api.getAccountFlows(
+                account,
+                direction,
+                sort,
+                10,
+                Array.from(existingNodes),
+                Array.from(existingEdges)
+            );
             //cy.nodes().lock();
-            const newElements = addNewElements(newData, cy, sourcePos, targetPos);
+            
+            const newElements = addNewElements(newData, cy);
             
             if (newElements && newElements.length > 0) {
-                // Calculate radius based on distance between nodes
-                const distance = Math.sqrt(
-                    Math.pow(targetPos.x - sourcePos.x, 2) + 
-                    Math.pow(targetPos.y - sourcePos.y, 2)
-                );
-                const radius = distance * 0.25; // Adjust this factor to change circle size
+                const newNodes = newElements.filter((ele: any) => ele.group === 'nodes');
                 
-                const layout = cy.elements().layout({
-                    name: 'circle',
-                    padding: 30,
-                    animate: false,
-                    fit: false,
-                    //radius: radius,
+                cy.layout({
+                    name: 'cose',
+                    animate:false,
+                    spacingFactor: 5,
+                }).run();
+
+                // Animate to show all elements
+                cy.animate({
+                    fit: {
+                        eles: cy.elements(),
+                        padding: 30
+                    },
+                    duration: 500
                 });
-    
-                layout.run().promiseOn('layoutstop');
             }
             //cy.nodes().unlock();
         } catch (error) {
-            console.error('Error expanding link:', error);
+            console.error('Error expanding node:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    const addNewElements = (newData: NetworkData, cy: Core, sourcePos: Position, targetPos: Position) => {
+    const expandEdge = async (edge: EdgeSingular, cy: Core) => {
+        try {
+            setLoading(true);
+            const signature = edge.data('txId');
+
+            // Get positions of source and target nodes
+            const sourceNode = edge.source();
+            const targetNode = edge.target();
+            const centerX = (sourceNode.position('x') + targetNode.position('x')) / 2;
+            const centerY = (sourceNode.position('y') + targetNode.position('y')) / 2;
+
+            // Calculate edge length to use as a scale reference
+            const edgeLength = Math.sqrt(
+                Math.pow(targetNode.position('x') - sourceNode.position('x'), 2) +
+                Math.pow(targetNode.position('y') - sourceNode.position('y'), 2)
+            );
+
+            const radius = edgeLength * 0.3;
+            
+            // Fetch transaction data for this edge
+            const newData = await api.getTransactionFlows(
+                signature,
+                Array.from(existingNodes),
+                Array.from(existingEdges)
+            );
+
+            cy.nodes().lock();
+            
+            // Lock existing nodes
+            //cy.nodes().lock();
+            const newElements = addNewElements(newData, cy);
+            
+            if (newElements && newElements.length > 0) {
+                const newNodes = newElements.filter((node: any) => node.group === 'nodes');
+
+                // Position new nodes in a circle around the center point
+                newNodes.forEach((node, i) => {
+                    // Use a partial circle (120 degrees) instead of full circle
+                    const angleOffset = -Math.PI / 3; // Start at -60 degrees
+                    const angleRange = (2 * Math.PI) / 3; // 120 degrees total
+                    const angle = angleOffset + (angleRange * i) / (newNodes.length - 1 || 1);
+                    
+                    const x = centerX + radius * Math.cos(angle);
+                    const y = centerY + radius * Math.sin(angle);
+                    node.position({ x, y });
+                });
+
+                const layout = newNodes.layout({
+                    name: 'circle',
+                    animate:true,
+                    animationDuration: 500,
+                    boundingBox: {
+                        x1: centerX - radius,
+                        y1: centerY - radius,
+                        x2: centerX + radius,
+                        y2: centerY + radius
+                    },
+                    spacingFactor: 0.5,
+                    padding: 10
+                });
+    
+                layout.run();
+            }
+            cy.nodes().unlock();
+        } catch (error) {
+            console.error('Error expanding edge:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const addNewElements = (newData: NetworkData, cy: Core) => {
         console.log('Starting addNewElements, cyInstance:', cy ? 'exists' : 'null');
         if (!cy) {
             console.log('No cyInstance');
@@ -235,47 +356,37 @@ const NetworkGraph: React.FC = () => {
 
         let additions: cytoscape.ElementDefinition[] = [];
 
-        // Calculate center point between source and target
-        const centerX = (sourcePos.x + targetPos.x) / 2;
-        const centerY = (sourcePos.y + targetPos.y) / 2;
-
         // Add only new nodes
         newData.nodes.forEach(node => {
-            if (!existingNodes.has(node.pubkey)) {
-                existingNodes.add(node.pubkey);
-                const newNode = {
-                    group: 'nodes' as const,
-                    data: {
-                        id: node.pubkey,
-                        label: node.tag || `${node.pubkey.slice(0, 4)}...${node.pubkey.slice(-4)}`
-                    }
-                };
-                additions.push(newNode);
-            }
-        });
-
-       // Get existing edges from cytoscape
-        cy.edges().forEach(edge => {
-            const edgeKey = `${edge.source().id()}-${edge.target().id()}-${edge.data('value')}-${edge.data('txId')}`;
-            existingEdges.add(edgeKey);
+            existingNodes.add(node.pubkey);
+            additions.push({
+                group: 'nodes' as const,
+                data: {
+                    id: node.pubkey,
+                    label: node.label || `${node.pubkey.slice(0, 4)}...${node.pubkey.slice(-4)}`,
+                    tags: node.tags
+                }
+            });
         });
 
         // Add only new edges
-        newData.links.forEach(link => {
-            const edgeKey = `${link.source}-${link.target}-${link.value}`;
+        newData.edges.forEach(edge => {
+            const edgeKey = `${edge.txId}-${edge.source}-${edge.target}-${edge.mint}-${edge.amount}`;
             if (!existingEdges.has(edgeKey)) {
                 existingEdges.add(edgeKey);
                 const newEdge = {
                     group: 'edges' as const,
                     data: {
-                        source: link.source,
-                        target: link.target,
-                        weight: Math.pow(link.value, 0.1),
-                        type: link.type,
-                        ticker: link.ticker,
-                        value: link.value,
-                        tag: link.tag,
-                        txId: link.txId
+                        source: edge.source,
+                        target: edge.target,
+                        amount: edge.amount,
+                        weight: Math.pow(edge.amount, 0.1),
+                        type: edge.type,
+                        mint: edge.mint,
+                        ticker: edge.ticker,
+                        value: edge.value,
+                        tags: edge.tags,
+                        txId: edge.txId
                     }
                 };
                 additions.push(newEdge);
@@ -301,10 +412,20 @@ const NetworkGraph: React.FC = () => {
             let data: NetworkData;
             
             if (isTransactionSignature(input)) {
-                // Initialize new graph
-                data = await api.getTransactionNetwork(input);
+                data = await api.getTransactionFlows(input, [], []);
+                console.log(data);
+                data.edges = data.edges.map(edge => ({ ...edge, isExpandable: false}))
             } else if (isAccountAddress(input)) {
-                data = await api.getAccountInflows(input);
+                // Get account label from database
+                const accountMetadata = await api.getAccountMetadata(input);
+                data = {
+                    "nodes": [{
+                        "pubkey": input,
+                        "label": accountMetadata.label,
+                        "tags": accountMetadata.tags
+                    }],
+                    "edges": []
+                }
             } else {
                 throw new Error('Invalid input format');
             }
@@ -313,181 +434,13 @@ const NetworkGraph: React.FC = () => {
             
             // Add initial nodes to tracking set
             data.nodes.forEach(node => existingNodes.add(node.pubkey));
+            data.edges.forEach(edge => existingEdges.add(`${edge.txId}-${edge.source}-${edge.target}-${edge.mint}-${edge.amount}`));
             
         } catch (error) {
             console.error('Error fetching initial data:', error);
             setError('Failed to fetch network data');
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchNetworkData = async (signature: string) => {
-        try {
-            if (isTransactionSignature(signature)) {
-                let endpoint = `${proxyBaseUrl}/api/transaction/network/${signature}`;
-                
-                const response = await axios.get(endpoint);
-                const { nodes, links } = response.data;
-
-                // Transform the data for cytoscape
-                const elements = {
-                    nodes: nodes.map((node: any) => ({
-                        data: {
-                            id: node.pubkey,
-                            label: node.tag || `${node.pubkey.slice(0, 4)}...${node.pubkey.slice(-4)}`
-                        }
-                    })),
-                    edges: links.map((link: any) => ({
-                        data: {
-                            source: link.source,
-                            target: link.target,
-                            weight: Math.pow(link.value, 0.1),
-                            type: link.type,
-                            ticker: link.ticker,
-                            value: link.value,
-                            tag: link.tag
-                        }
-                    }))
-                };
-
-                if (cyInstance) {
-                    cyInstance.destroy();
-                }
-
-                // Create new cytoscape instance with the data
-                const cy = cytoscape({
-                    container: cyRef.current,
-                    elements: elements,
-                    style: [
-                        {
-                            selector: 'node',
-                            style: {
-                                'background-color': '#666',
-                                'label': 'data(label)',
-                                'color': '#fff',
-                                'text-valign': 'center',
-                                'text-halign': 'center',
-                                'width': 40,
-                                'height': 40
-                            }
-                        },
-                        {
-                            selector: 'node.hover',
-                            style: {
-                                'label': 'data(id)', // Show full pubkey on hover
-                                'text-wrap': 'wrap',
-                                'text-max-width': '200px',
-                                'font-size': '12px',
-                                'color': '#ffffff',
-                                'text-outline-color': '#000000',
-                                'text-outline-width': 3,
-                                'text-background-color': 'rgba(0, 0, 0, 0.8)',
-                                'text-background-opacity': 1,
-                                'text-background-padding': '3px',
-                                'text-background-shape': 'roundrectangle',
-                                'font-weight': 'bold',
-                                'z-index': 999
-                            }
-                        },
-                        {
-                            selector: 'edge',
-                            style: {
-                                'width': 'data(weight)',
-                                'line-color': (ele) => {
-                                    const type = ele.data('type');
-                                    const ticker = ele.data('ticker');
-                                    if (type === 'fee') return '#ff69b4'; // pink
-                                    return ticker === 'SOL' ? '#ffff00' : '#00ffff'; // yellow : cyan
-                                },
-                                'curve-style': 'bezier',
-                                'target-arrow-shape': 'triangle',
-                                'target-arrow-color': (ele) => {
-                                    const type = ele.data('type');
-                                    const ticker = ele.data('ticker');
-                                    if (type === 'fee') return '#ff69b4';
-                                    return ticker === 'SOL' ? '#ffff00' : '#00ffff';
-                                },
-                            },
-                        },
-                        {
-                            selector: 'edge.hover',
-                            style: {
-                                'label': (ele: any) => {
-                                    const value = ele.data('value');
-                                    const ticker = ele.data('ticker');
-                                    const tag = ele.data('tag');
-                                    const formattedValue = Number(value).toLocaleString(undefined, {
-                                        minimumFractionDigits: 0,
-                                        maximumFractionDigits: 9
-                                    });
-                                    return tag ? `${formattedValue} ${ticker}\n${tag}` : `${formattedValue} ${ticker}`;
-                                },
-                                'text-rotation': 'autorotate',
-                                'text-margin-y': -15,
-                                'text-wrap': 'wrap',
-                                'text-max-width': '200px',
-                                'font-size': '12px',
-                                'color': '#ffffff',
-                                'text-outline-color': '#000000',
-                                'text-outline-width': 3,
-                                'text-background-color': 'rgba(0, 0, 0, 0.8)',
-                                'text-background-opacity': 1,
-                                'text-background-padding': '3px',
-                                'text-background-shape': 'roundrectangle',
-                                'font-weight': 'bold',
-                                'z-index': 999 // Ensure the label appears on top
-                            }
-                        }
-                    ],
-                    layout: {
-                        name: 'circle',
-                        padding: 30
-                    }
-                });
-
-                // Enable user interaction
-                cy.on('tap', 'node', function(evt) {
-                    const node = evt.target;
-                    console.log('Clicked node:', node.id());
-                });
-
-                cy.on('tap', 'edge', function(evt) {
-                    const edge = evt.target;
-                    console.log('Edge details:', {
-                        from: edge.source().id(),
-                        to: edge.target().id(),
-                        value: edge.data('value'),
-                        ticker: edge.data('ticker'),
-                        type: edge.data('type')
-                    });
-                });
-
-                cy.on('mouseover', 'edge', function(evt) {
-                    evt.target.addClass('hover');
-                });
-
-                cy.on('mouseout', 'edge', function(evt) {
-                    evt.target.removeClass('hover');
-                });
-
-                cy.on('mouseover', 'node', function(evt) {
-                    evt.target.addClass('hover');
-                });
-
-                cy.on('mouseout', 'node', function(evt) {
-                    evt.target.removeClass('hover');
-                });
-
-                setCyInstance(cy);
-
-            } else if (isAccountAddress(signature)) {
-                let endpoint = `${proxyBaseUrl}/api/account/network/${signature}`;
-            } else {
-                throw new Error('Invalid signature format');
-            }
-        } catch (error) {
-            console.error("Error fetching Network data:", error);
         }
     };
 
@@ -498,6 +451,7 @@ const NetworkGraph: React.FC = () => {
         }
     };
 
+    // Initial graph
     useEffect(() => {
         if (!cyRef.current) return;
 
@@ -549,7 +503,7 @@ const NetworkGraph: React.FC = () => {
         // Enable user interaction
         cy.on('tap', 'node', function(evt) {
             const node = evt.target;
-            console.log('Clicked node:', node.id());
+            console.log('Clicked node:', node.data('pubkey'));
         });
 
         // Cleanup function
@@ -560,7 +514,7 @@ const NetworkGraph: React.FC = () => {
 
     return (
         <div className="flex flex-col items-center w-full">
-            <h1 className="text-3xl font-bold my-6">Solana Network Graph</h1>
+            <h1 className="text-3xl font-bold my-6">Solana Forensics</h1>
             <form 
                 onSubmit={handleSubmit}
                 className="flex flex-col sm:flex-row gap-4 items-center mb-6"

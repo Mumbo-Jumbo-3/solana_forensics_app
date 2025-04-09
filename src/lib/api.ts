@@ -2,38 +2,71 @@ import axios from "axios";
 
 export interface NetworkNode {
     pubkey: string;
-    tag?: string;
+    label?: string;
+    img_url?: string;
+    tags?: string[];
+    type?: string;
 }
 
-export interface NetworkLink {
+export interface NetworkEdge {
     source: string;
     target: string;
-    value: number;
+    amount: number;
+    label?: string;
+    value?: number;
     mint?: string;
     ticker?: string;
+    tokenImage?: string;
     type?: string;
-    tag?: string;
     txId?: string;
+    programLabel?: string;
+    tags?: string[];
+    isExpandable?: boolean;
 }
 
 export interface NetworkData {
     nodes: NetworkNode[];
-    links: NetworkLink[];
+    edges: NetworkEdge[];
 }
 
 export const api = {
-    async getTransactionNetwork(signature: string): Promise<NetworkData> {
-        const response = await axios.get(`/api/transaction/${signature}`);
+    async getTransactionFlows(
+        signature: string,
+        existingNodes: string[],
+        existingEdges: string[]
+    ): Promise<NetworkData> {
+        const response = await axios.post(`/api/transaction_flows/${signature}`, {
+            existingNodes,
+            existingEdges
+        });
         return response.data;
     },
 
-    async getAccountBalances(address: string): Promise<NetworkData> {
-        const response = await axios.get(`/api/account/transactions/${address}`);
+    async getAccountFlows(
+        address: string,
+        direction: string,
+        sort: string,
+        limit: number,
+        existingNodes: string[],
+        existingEdges: string[]
+    ): Promise<NetworkData> {
+        const queryParams = new URLSearchParams();
+        if (direction) queryParams.append('direction', direction);
+        if (sort) queryParams.append('sort', sort);
+        if (limit) queryParams.append('limit', limit.toString());
+
+        const response = await axios.post(
+            `/api/account_flows/${address}?${queryParams.toString()}`,
+            {
+                existingNodes: existingNodes,
+                existingEdges: existingEdges
+            }
+        );
         return response.data;
     },
 
-    async getAccountInflows(address: string): Promise<NetworkData> {
-        const response = await axios.get(`/api/account_inflows/${address}`);
+    async getAccountMetadata(address: string): Promise<NetworkNode> {
+        const response = await axios.get(`/api/account/${address}`);
         return response.data;
-    },
+    }
 };

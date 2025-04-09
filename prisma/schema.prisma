@@ -7,42 +7,97 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model SankeyChart {
-  id        Int          @id @default(autoincrement())
-  title     String?
-  createdAt DateTime     @default(now()) @map("created_at")
-  nodes     SankeyNode[]
-  links     SankeyLink[]
-
-  @@map("sankey_charts")
-}
-
 model SankeyNode {
-  id        Int         @id @default(autoincrement())
-  chartId   Int         @map("chart_id")
-  nodeKey   String      @map("node_key")
+  id        Int     @id @default(autoincrement())
+  project   String?
+  key       String
   title     String?
   color     String?
   priority  Int?
-  createdAt DateTime    @default(now()) @map("created_at")
-  chart     SankeyChart @relation(fields: [chartId], references: [id], onDelete: Cascade)
-  fromLinks SankeyLink[] @relation("FromNode")
-  toLinks   SankeyLink[] @relation("ToNode")
+  createdAt BigInt? @map("created_at")
 
-  @@unique([chartId, nodeKey])
   @@map("sankey_nodes")
 }
 
 model SankeyLink {
-  id        Int         @id @default(autoincrement())
-  chartId   Int         @map("chart_id")
-  fromNode  String      @map("from_node")
-  toNode    String      @map("to_node")
-  flow      Float       @default(1)
-  createdAt DateTime    @default(now()) @map("created_at")
-  chart     SankeyChart @relation(fields: [chartId], references: [id], onDelete: Cascade)
-  fromNodeRel SankeyNode @relation("FromNode", fields: [chartId, fromNode], references: [chartId, nodeKey])
-  toNodeRel   SankeyNode @relation("ToNode", fields: [chartId, toNode], references: [chartId, nodeKey])
+  id        Int     @id @default(autoincrement())
+  project   String?
+  fromNode  String? @map("from_node")
+  toNode    String? @map("to_node")
+  flow      String?
+  createdAt BigInt? @map("created_at")
 
   @@map("sankey_links")
+}
+
+model accounts {
+  pubkey  String  @id(map: "account_labels_pkey")
+  label   String
+  tags    String?
+  img_url String?
+}
+
+model solana_icos_txs {
+  tx_id     String
+  blocktime BigInt
+  slot      BigInt
+  meta      Json
+  tx        Json
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  raise     String
+
+  @@index([blocktime], map: "idx_block_time")
+  @@index([meta], map: "idx_meta", type: Gin)
+  @@index([tx], map: "idx_tx", type: Gin)
+}
+
+model tokens {
+  mint        String  @id
+  ticker      String?
+  name        String?
+  decimals    String?
+  description String?
+  img_url     String?
+}
+
+model tweet {
+  tweet_id         String    @id
+  user_id          String
+  username         String
+  retweet_count    Int
+  reply_count      Int
+  like_count       Int
+  quote_count      Int
+  bookmark_count   Int
+  impression_count Int
+  text             String?
+  created_at       DateTime? @db.Timestamptz(6)
+}
+
+model user {
+  user_id                String   @id
+  avg_likes_7d           Decimal? @db.Decimal(10, 2)
+  avg_likes_10p          Decimal? @db.Decimal(10, 2)
+  avg_retweets_7d        Decimal? @db.Decimal(10, 2)
+  avg_retweets_10p       Decimal? @db.Decimal(10, 2)
+  avg_quotes_7d          Decimal? @db.Decimal(10, 2)
+  avg_quotes_10p         Decimal? @db.Decimal(10, 2)
+  avg_bookmarks_7d       Decimal? @db.Decimal(10, 2)
+  avg_bookmarks_10p      Decimal? @db.Decimal(10, 2)
+  avg_impressions_7d     Decimal? @db.Decimal(10, 2)
+  avg_impressions_10p    Decimal? @db.Decimal(10, 2)
+  avg_replies_7d         Decimal? @db.Decimal(10, 2)
+  avg_replies_10p        Decimal? @db.Decimal(10, 2)
+  stddev_likes_7d        Decimal? @db.Decimal(10, 2)
+  stddev_likes_10p       Decimal? @db.Decimal(10, 2)
+  stddev_retweets_7d     Decimal? @db.Decimal(10, 2)
+  stddev_retweets_10p    Decimal? @db.Decimal(10, 2)
+  stddev_quotes_7d       Decimal? @db.Decimal(10, 2)
+  stddev_quotes_10p      Decimal? @db.Decimal(10, 2)
+  stddev_bookmarks_7d    Decimal? @db.Decimal(10, 2)
+  stddev_bookmarks_10p   Decimal? @db.Decimal(10, 2)
+  stddev_impressions_7d  Decimal? @db.Decimal(10, 2)
+  stddev_impressions_10p Decimal? @db.Decimal(10, 2)
+  stddev_replies_7d      Decimal? @db.Decimal(10, 2)
+  stddev_replies_10p     Decimal? @db.Decimal(10, 2)
 }
