@@ -17,11 +17,11 @@ const NetworkGraph: React.FC = () => {
     const [existingEdges] = useState(new Set<string>());
 
     const isTransactionSignature = (input: string): boolean => {
-        return input.length === 88 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(input);
+        return /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{87,88}$/.test(input);
     };
 
     const isAccountAddress = (input: string): boolean => {
-        return input.length >= 32 && input.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(input);
+        return /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{32,44}$/.test(input);
     };
 
     const initializeCytoscape = useCallback((initialData?: NetworkData) => {
@@ -410,17 +410,19 @@ const NetworkGraph: React.FC = () => {
             existingEdges.clear();
 
             let data: NetworkData;
+            const fixedInput = input.trim();
+            console.log('fixedInput:', fixedInput);
             
-            if (isTransactionSignature(input)) {
-                data = await api.getTransactionFlows(input, [], []);
+            if (isTransactionSignature(fixedInput)) {
+                data = await api.getTransactionFlows(fixedInput, [], []);
                 console.log(data);
                 data.edges = data.edges.map(edge => ({ ...edge, isExpandable: false}))
-            } else if (isAccountAddress(input)) {
+            } else if (isAccountAddress(fixedInput)) {
                 // Get account label from database
-                const accountMetadata = await api.getAccountMetadata(input);
+                const accountMetadata = await api.getAccountMetadata(fixedInput);
                 data = {
                     "nodes": [{
-                        "pubkey": input,
+                        "pubkey": fixedInput,
                         "label": accountMetadata.label,
                         "tags": accountMetadata.tags
                     }],
