@@ -15,10 +15,11 @@ function tippyFactory(ref: any, content: any) {
         getReferenceClientRect: ref.getBoundingClientRect,
         trigger: 'manual',
         content: content,
-        placement: 'top-start',
+        placement: 'top',
         interactive: true,
         appendTo: document.body,
         allowHTML: true,
+        offset: [-75, -30],
     });
 }
 
@@ -264,9 +265,7 @@ const NetworkGraph: React.FC = () => {
             const node = evt.target as NodeSingular;
             //node.addClass('hover');
             const nodeId = node.id();
-            console.log('nodePagination:', paginationRef.current);
             const pagination = paginationRef.current[nodeId];
-            console.log('pagination:', JSON.stringify(pagination, null, 2));
             const ref = node.popperRef();
             const tip = tippyFactory(ref, `
                 <div class="p-2 bg-gray-800 rounded-md" style="min-width: 500px;">
@@ -331,7 +330,7 @@ const NetworkGraph: React.FC = () => {
                 account,
                 direction,
                 sort,
-                10,
+                100,
                 Array.from(existingNodes),
                 Array.from(existingEdges),
                 currentPagination?.page || 1
