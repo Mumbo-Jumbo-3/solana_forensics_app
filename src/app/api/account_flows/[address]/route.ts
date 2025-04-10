@@ -10,13 +10,14 @@ export async function POST(
     const direction = searchParams.get('direction') || 'in';
     const sort = searchParams.get('sort') || 'asc';
     const limit = searchParams.get('limit') || 10;
-    
+    const page = searchParams.get('page') || 1;
+
     const backendBaseUrl = process.env.PYTHON_API_URL;
     
     try {
-        console.log(`Fetching account flows for ${address} with direction ${direction} and sort ${sort} and limit ${limit}`);
+        console.log(`Fetching account flows for ${address} with direction ${direction} and sort ${sort} and limit ${limit} and page ${page}`);
         const response = await fetch(
-            `${backendBaseUrl}/account_flows/${address}?direction=${direction}&sort=${sort}&limit=${limit}`,
+            `${backendBaseUrl}/account_flows/${address}?direction=${direction}&sort=${sort}&limit=${limit}&page=${page}`,
             {
                 method: 'POST',
                 headers: {

@@ -27,6 +27,7 @@ export interface NetworkEdge {
 export interface NetworkData {
     nodes: NetworkNode[];
     edges: NetworkEdge[];
+    hasMore: boolean;
 }
 
 export const api = {
@@ -48,12 +49,14 @@ export const api = {
         sort: string,
         limit: number,
         existingNodes: string[],
-        existingEdges: string[]
+        existingEdges: string[],
+        page: number
     ): Promise<NetworkData> {
         const queryParams = new URLSearchParams();
         if (direction) queryParams.append('direction', direction);
         if (sort) queryParams.append('sort', sort);
         if (limit) queryParams.append('limit', limit.toString());
+        if (page) queryParams.append('page', page.toString());
 
         const response = await axios.post(
             `/api/account_flows/${address}?${queryParams.toString()}`,

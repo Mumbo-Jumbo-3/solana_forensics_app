@@ -5,6 +5,40 @@ import popper from 'cytoscape-popper';
 import { computePosition, arrow, limitShift, flip, shift } from '@floating-ui/dom';
 import axios from 'axios';
 import { api, NetworkData } from '@/lib/api';
+import tippy from 'tippy.js';
+import cytoscapePopper from 'cytoscape-popper';
+
+function tippyFactory(ref: any, content: any) {
+    const dummy = document.createElement('div');
+
+    return tippy(dummy, {
+        getReferenceClientRect: ref.getBoundingClientRect,
+        trigger: 'manual',
+        content: content,
+        placement: 'top-start',
+        interactive: true,
+        appendTo: document.body,
+        allowHTML: true,
+    });
+}
+
+cytoscape.use(cytoscapePopper(tippyFactory));
+
+declare global {
+    interface Window {
+        expandInDesc: (id: string) => void;
+        expandOutDesc: (id: string) => void;
+        expandInAsc: (id: string) => void;
+        expandOutAsc: (id: string) => void;
+    }
+}
+
+interface NodePaginationState {
+    inAsc: { hasMore: boolean; page: number };
+    inDesc: { hasMore: boolean; page: number };
+    outAsc: { hasMore: boolean; page: number };
+    outDesc: { hasMore: boolean; page: number };
+}
 
 const NetworkGraph: React.FC = () => {
     const cyRef = useRef<HTMLDivElement>(null);
@@ -15,6 +49,14 @@ const NetworkGraph: React.FC = () => {
 
     const [existingNodes] = useState(new Set<string>());
     const [existingEdges] = useState(new Set<string>());
+
+    const [nodePagination, setNodePagination] = useState<Record<string, NodePaginationState>>({});
+    const paginationRef = useRef<Record<string, NodePaginationState>>({});
+
+    useEffect(() => {
+        console.log('nodePagination updated:', nodePagination);
+        paginationRef.current = nodePagination;
+    }, [nodePagination]);
 
     const isTransactionSignature = (input: string): boolean => {
         return /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{87,88}$/.test(input);
@@ -220,12 +262,55 @@ const NetworkGraph: React.FC = () => {
 
         cy.on('mouseover', 'node', function(evt) {
             const node = evt.target as NodeSingular;
-            node.addClass('hover');
+            //node.addClass('hover');
+            const nodeId = node.id();
+            console.log('nodePagination:', paginationRef.current);
+            const pagination = paginationRef.current[nodeId];
+            console.log('pagination:', JSON.stringify(pagination, null, 2));
+            const ref = node.popperRef();
+            const tip = tippyFactory(ref, `
+                <div class="p-2 bg-gray-800 rounded-md" style="min-width: 500px;">
+                    <p class="text-white text-center">${nodeId}</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-sm" 
+                            onclick="expandInDesc('${nodeId}')"
+                            ${!pagination?.inDesc?.hasMore ? 'disabled style="opacity: 0.5"' : ''}>
+                            ↖️ ${pagination?.inDesc?.hasMore ? 'New' : 'No More'} Inflows
+                        </button>
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-sm" 
+                            onclick="expandOutDesc('${nodeId}')"
+                            ${!pagination?.outDesc?.hasMore ? 'disabled style="opacity: 0.5"' : ''}>
+                            ↗️ ${pagination?.outDesc?.hasMore ? 'New' : 'No More'} Outflows
+                        </button>
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-sm" 
+                            onclick="expandInAsc('${nodeId}')"
+                            ${!pagination?.inAsc?.hasMore ? 'disabled style="opacity: 0.5"' : ''}>
+                            ↙️ ${pagination?.inAsc?.hasMore ? 'Old' : 'No More'} Inflows
+                        </button>
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-sm" 
+                            onclick="expandOutAsc('${nodeId}')"
+                            ${!pagination?.outAsc?.hasMore ? 'disabled style="opacity: 0.5"' : ''}>
+                            ↘️ ${pagination?.outAsc?.hasMore ? 'Old' : 'No More'} Outflows
+                        </button>
+                    </div>
+                </div>
+            `);
+            tip.show();
+            node.data('tip', tip);
+
+            window.expandInDesc = (id) => expandNode(cy.$(`#${id}`), cy, 'in', 'desc');
+            window.expandOutDesc = (id) => expandNode(cy.$(`#${id}`), cy, 'out', 'desc');
+            window.expandInAsc = (id) => expandNode(cy.$(`#${id}`), cy, 'in', 'asc');
+            window.expandOutAsc = (id) => expandNode(cy.$(`#${id}`), cy, 'out', 'asc');
         });
 
         cy.on('mouseout', 'node', function(evt) {
             const node = evt.target as NodeSingular;
             node.removeClass('hover');
+            const tip = node.data('tip');
+            if (tip) {
+                tip.destroy();
+            }
         });
     };
 
@@ -234,19 +319,53 @@ const NetworkGraph: React.FC = () => {
             setLoading(true);
             const account = node.id();
     
-            // Get position of the source node
-            const nodePos = node.position();
-            const radius = 150; // Distance from center node
-    
+            const paginationKey = `${direction}${sort.charAt(0).toUpperCase() + sort.slice(1)}`;
+            const currentPagination = paginationRef.current[account]?.[paginationKey as keyof NodePaginationState];
+            console.log('currentPagination:', JSON.stringify(currentPagination, null, 2));
+            if (currentPagination && !currentPagination.hasMore) {
+                console.log('No more pages');
+                return;
+            }
+
             const newData = await api.getAccountFlows(
                 account,
                 direction,
                 sort,
                 10,
                 Array.from(existingNodes),
-                Array.from(existingEdges)
+                Array.from(existingEdges),
+                currentPagination?.page || 1
             );
             //cy.nodes().lock();
+
+            if (newData.hasMore) {
+                setNodePagination(prev => ({
+                    ...prev,
+                    [account]: {
+                        ...prev[account],
+                        [paginationKey]: {
+                            hasMore: newData.hasMore,
+                            page: (currentPagination?.page || 0) + 1
+                        }
+                    }
+                }));
+            } else {
+                // When we reach the end of either sort direction, update both Asc and Desc for that flow direction
+                setNodePagination(prev => ({
+                    ...prev,
+                    [account]: {
+                        ...prev[account],
+                        ...(direction === 'in' && {
+                            inAsc: { hasMore: false, page: 1 },
+                            inDesc: { hasMore: false, page: 1 }
+                        }),
+                        ...(direction === 'out' && {
+                            outAsc: { hasMore: false, page: 1 },
+                            outDesc: { hasMore: false, page: 1 }
+                        })
+                    }
+                }));
+            }
             
             const newElements = addNewElements(newData, cy);
             
@@ -358,15 +477,28 @@ const NetworkGraph: React.FC = () => {
 
         // Add only new nodes
         newData.nodes.forEach(node => {
-            existingNodes.add(node.pubkey);
-            additions.push({
-                group: 'nodes' as const,
-                data: {
-                    id: node.pubkey,
-                    label: node.label || `${node.pubkey.slice(0, 4)}...${node.pubkey.slice(-4)}`,
-                    tags: node.tags
-                }
-            });
+            if (!existingNodes.has(node.pubkey)) {
+                existingNodes.add(node.pubkey);
+                additions.push({
+                    group: 'nodes' as const,
+                    data: {
+                        id: node.pubkey,
+                        label: node.label || `${node.pubkey.slice(0, 4)}...${node.pubkey.slice(-4)}`,
+                        tags: node.tags
+                    }
+                });
+    
+                // Initialize pagination state for new node
+                setNodePagination(prev => ({
+                    ...prev,
+                    [node.pubkey]: {
+                        inAsc: { hasMore: true, page: 1 },
+                        inDesc: { hasMore: true, page: 1 },
+                        outAsc: { hasMore: true, page: 1 },
+                        outDesc: { hasMore: true, page: 1 }
+                    }
+                }));
+            }
         });
 
         // Add only new edges
@@ -426,11 +558,27 @@ const NetworkGraph: React.FC = () => {
                         "label": accountMetadata.label,
                         "tags": accountMetadata.tags
                     }],
-                    "edges": []
+                    "edges": [],
+                    "hasMore": true
                 }
             } else {
                 throw new Error('Invalid input format');
             }
+
+            const initialPagination: Record<string, NodePaginationState> = {};
+            data.nodes.forEach(node => {
+                initialPagination[node.pubkey] = {
+                    inAsc: { hasMore: true, page: 1 },
+                    inDesc: { hasMore: true, page: 1 },
+                    outAsc: { hasMore: true, page: 1 },
+                    outDesc: { hasMore: true, page: 1 }
+                };
+            });
+            console.log('initialPagination:', JSON.stringify(initialPagination, null, 2));
+            // Use callback form to ensure we're not losing any state updates
+            setNodePagination(initialPagination);
+
+            console.log('Current pagination after set:', nodePagination);
             
             initializeCytoscape(data);
             
