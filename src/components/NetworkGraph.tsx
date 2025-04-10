@@ -55,7 +55,6 @@ const NetworkGraph: React.FC = () => {
     const paginationRef = useRef<Record<string, NodePaginationState>>({});
 
     useEffect(() => {
-        console.log('nodePagination updated:', nodePagination);
         paginationRef.current = nodePagination;
     }, [nodePagination]);
 
@@ -226,18 +225,14 @@ const NetworkGraph: React.FC = () => {
                 // Click was in icon region
                 if (relX > 0) { // Right side
                     if (relY < 0) { // Top right
-                        console.log('Top right');
                         await expandNode(node, cy, 'out', 'desc');
                     } else { // Bottom right
-                        console.log('Bottom right');
                         await expandNode(node, cy, 'out', 'asc');
                     }
                 } else { // Left side
                     if (relY < 0) { // Top left
-                        console.log('Top left');
                         await expandNode(node, cy, 'in', 'desc');
                     } else { // Bottom left
-                        console.log('Bottom left');
                         await expandNode(node, cy, 'in', 'asc');
                     }
                 }
@@ -320,9 +315,7 @@ const NetworkGraph: React.FC = () => {
     
             const paginationKey = `${direction}${sort.charAt(0).toUpperCase() + sort.slice(1)}`;
             const currentPagination = paginationRef.current[account]?.[paginationKey as keyof NodePaginationState];
-            console.log('currentPagination:', JSON.stringify(currentPagination, null, 2));
             if (currentPagination && !currentPagination.hasMore) {
-                console.log('No more pages');
                 return;
             }
 
@@ -466,9 +459,7 @@ const NetworkGraph: React.FC = () => {
     };
 
     const addNewElements = (newData: NetworkData, cy: Core) => {
-        console.log('Starting addNewElements, cyInstance:', cy ? 'exists' : 'null');
         if (!cy) {
-            console.log('No cyInstance');
             return;
         }
 
@@ -523,7 +514,6 @@ const NetworkGraph: React.FC = () => {
                 additions.push(newEdge);
             }
         });
-        console.log(JSON.stringify(additions, null, 2));
 
         return cy.add(additions);
     };
@@ -542,11 +532,9 @@ const NetworkGraph: React.FC = () => {
 
             let data: NetworkData;
             const fixedInput = input.trim();
-            console.log('fixedInput:', fixedInput);
             
             if (isTransactionSignature(fixedInput)) {
                 data = await api.getTransactionFlows(fixedInput, [], []);
-                console.log(data);
                 data.edges = data.edges.map(edge => ({ ...edge, isExpandable: false}))
             } else if (isAccountAddress(fixedInput)) {
                 // Get account label from database
@@ -573,12 +561,8 @@ const NetworkGraph: React.FC = () => {
                     outDesc: { hasMore: true, page: 1 }
                 };
             });
-            console.log('initialPagination:', JSON.stringify(initialPagination, null, 2));
-            // Use callback form to ensure we're not losing any state updates
-            setNodePagination(initialPagination);
 
-            console.log('Current pagination after set:', nodePagination);
-            
+            setNodePagination(initialPagination);
             initializeCytoscape(data);
             
             // Add initial nodes to tracking set
@@ -652,7 +636,6 @@ const NetworkGraph: React.FC = () => {
         // Enable user interaction
         cy.on('tap', 'node', function(evt) {
             const node = evt.target;
-            console.log('Clicked node:', node.data('pubkey'));
         });
 
         // Cleanup function
