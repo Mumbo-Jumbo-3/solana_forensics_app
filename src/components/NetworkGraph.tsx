@@ -89,7 +89,7 @@ const NetworkGraph: React.FC = () => {
                         mint: edge.mint,
                         label: edge.label,
                         tokenImage: edge.tokenImage,
-                        weight: Math.pow(edge.amount, 0.1),
+                        weight: Math.pow(edge.value || edge.amount, 0.25),
                         type: edge.type,
                         ticker: edge.ticker,
                         value: edge.value,
@@ -157,6 +157,7 @@ const NetworkGraph: React.FC = () => {
                     style: {
                         'label': (ele: any) => {
                             const amount = ele.data('amount');
+                            const value = ele.data('value');
                             const ticker = ele.data('ticker');
                             const label = ele.data('label');
                             const tokenImage = ele.data('tokenImage');
@@ -164,9 +165,19 @@ const NetworkGraph: React.FC = () => {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 9
                             });
-                            return label 
-                                ? `${formattedAmount} ${ticker}\n${label}`
-                                : `${formattedAmount} ${ticker}`;
+
+                            let displayText = `${formattedAmount} ${ticker}`;
+                            if (value) {
+                                const formattedValue = Number(value).toLocaleString(undefined, {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2
+                                });
+                                displayText = `$${formattedValue}\n(${formattedAmount} ${ticker})`;
+                            }
+                            if (label) {
+                                displayText += `\n${label}`;
+                            }
+                            return displayText;
                         },
                         'text-rotation': 'autorotate',
                         'text-margin-y': -15,
@@ -502,7 +513,7 @@ const NetworkGraph: React.FC = () => {
                         source: edge.source,
                         target: edge.target,
                         amount: edge.amount,
-                        weight: Math.pow(edge.amount, 0.1),
+                        weight: Math.pow(edge.value || edge.amount, 0.25),
                         type: edge.type,
                         mint: edge.mint,
                         ticker: edge.ticker,
