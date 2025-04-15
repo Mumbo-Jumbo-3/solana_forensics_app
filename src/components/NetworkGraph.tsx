@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import cytoscape, { Core, EdgeSingular, NodeSingular, Position } from 'cytoscape';
 import popper from 'cytoscape-popper';
-import { computePosition, arrow, limitShift, flip, shift } from '@floating-ui/dom';
 import axios from 'axios';
 import { api, NetworkData } from '@/lib/api';
 import tippy from 'tippy.js';
@@ -64,6 +63,30 @@ const NetworkGraph: React.FC = () => {
 
     const isAccountAddress = (input: string): boolean => {
         return /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{32,44}$/.test(input);
+    };
+
+    const handleZoomIn = () => {
+        if (cyInstance) {
+            cyInstance.zoom({
+                level: cyInstance.zoom() * 1.2,
+                renderedPosition: { x: cyInstance.width() / 2, y: cyInstance.height() / 2 }
+            });
+        }
+    };
+
+    const handleZoomOut = () => {
+        if (cyInstance) {
+            cyInstance.zoom({
+                level: cyInstance.zoom() * 0.8,
+                renderedPosition: { x: cyInstance.width() / 2, y: cyInstance.height() / 2 }
+            });
+        }
+    };
+
+    const handleResetView = () => {
+        if (cyInstance) {
+            cyInstance.fit(undefined, 30);
+        }
     };
 
     const initializeCytoscape = useCallback((initialData?: NetworkData) => {
@@ -203,7 +226,6 @@ const NetworkGraph: React.FC = () => {
             }
         });
 
-        // Add interaction handlers
         setupInteractionHandlers(cy);
         setCyInstance(cy);
         
@@ -693,10 +715,42 @@ const NetworkGraph: React.FC = () => {
                     {error}
                 </div>
             )}
-            <div 
-                ref={cyRef} 
-                className="w-full h-[600px] bg-[#1a1a1a] border border-gray-700 rounded-lg"
-            />
+            <div className="relative w-full">
+                {/* Zoom controls */}
+                <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+                    <button 
+                        onClick={handleZoomIn}
+                        className="p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg shadow-lg"
+                        title="Zoom In"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                    </button>
+                    <button 
+                        onClick={handleZoomOut}
+                        className="p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg shadow-lg"
+                        title="Zoom Out"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 12H6" />
+                        </svg>
+                    </button>
+                    <button 
+                        onClick={handleResetView}
+                        className="p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg shadow-lg"
+                        title="Reset View"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+                        </svg>
+                    </button>
+                </div>
+                <div 
+                    ref={cyRef} 
+                    className="w-full h-[600px] bg-[#1a1a1a] border border-gray-700 rounded-lg"
+                />
+            </div>
         </div>
     );
 }
