@@ -179,6 +179,10 @@ const NetworkGraph: React.FC = () => {
                     selector: 'edge.hover',
                     style: {
                         'label': (ele: any) => {
+                            const type = ele.data('type');
+                            if (type === 'delegate') {
+                                return 'Delegate';
+                            }
                             const amount = ele.data('amount');
                             const value = ele.data('value');
                             const ticker = ele.data('ticker');
@@ -193,7 +197,7 @@ const NetworkGraph: React.FC = () => {
                             if (value) {
                                 const formattedValue = Number(value).toLocaleString(undefined, {
                                     minimumFractionDigits: 0,
-                                    maximumFractionDigits: 2
+                                    maximumFractionDigits: 5
                                 });
                                 displayText = `$${formattedValue}\n(${formattedAmount} ${ticker})`;
                             }
@@ -622,62 +626,11 @@ const NetworkGraph: React.FC = () => {
 
     // Initial graph
     useEffect(() => {
-        if (!cyRef.current) return;
-
-        // Sample data - replace with your actual data
-        const cy = cytoscape({
-            container: cyRef.current,
-            elements: {
-                nodes: [
-                    { data: { id: 'a', label: 'Node A' } },
-                    { data: { id: 'b', label: 'Node B' } },
-                    { data: { id: 'c', label: 'Node C' } }
-                ],
-                edges: [
-                    { data: { source: 'a', target: 'b', weight: 1 } },
-                    { data: { source: 'b', target: 'c', weight: 2 } },
-                    { data: { source: 'c', target: 'a', weight: 3 } }
-                ]
-            },
-            style: [
-                {
-                    selector: 'node',
-                    style: {
-                        'background-color': '#666',
-                        'label': 'data(label)',
-                        'color': '#fff',
-                        'text-valign': 'center',
-                        'text-halign': 'center',
-                        'width': 40,
-                        'height': 40
-                    }
-                },
-                {
-                    selector: 'edge',
-                    style: {
-                        'width': 'data(weight)',
-                        'line-color': '#999',
-                        'curve-style': 'bezier',
-                        'target-arrow-shape': 'triangle',
-                        'target-arrow-color': '#999',
-                    }
-                }
-            ],
-            layout: {
-                name: 'circle',
-                padding: 30
-            }
-        });
-
-        // Enable user interaction
-        cy.on('tap', 'node', function(evt) {
-            const node = evt.target;
-        });
-
-        // Cleanup function
-        return () => {
-            cy.destroy();
+        const initializeGraph = async () => {
+            await handleInitialSearch('4uBHu8RCroo399rmSegXG49emK3vFQgNKMM7gm9hGD4VRpdpGCPi8MjrupUYdE6UgUJvaQu5mhDqMPhJfRZFATTx');
         };
+        
+        initializeGraph();
     }, []);
 
     return (
