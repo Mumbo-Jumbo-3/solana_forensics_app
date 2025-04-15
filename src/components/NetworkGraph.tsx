@@ -89,7 +89,7 @@ const NetworkGraph: React.FC = () => {
                         mint: edge.mint,
                         label: edge.label,
                         tokenImage: edge.tokenImage,
-                        weight: Math.pow(edge.value || edge.amount, 0.2),
+                        weight: Math.pow(edge.value || 0.1, 0.2),
                         type: edge.type,
                         ticker: edge.ticker,
                         value: edge.value,
@@ -374,6 +374,9 @@ const NetworkGraph: React.FC = () => {
             
             if (newElements && newElements.length > 0) {
                 const newNodes = newElements.filter((ele: any) => ele.group === 'nodes');
+
+                const centerX = node.position('x');
+                const centerY = node.position('y');
                 
                 cy.layout({
                     name: 'cose',
@@ -513,7 +516,7 @@ const NetworkGraph: React.FC = () => {
                         source: edge.source,
                         target: edge.target,
                         amount: edge.amount,
-                        weight: Math.pow(edge.value || edge.amount, 0.2),
+                        weight: Math.pow(edge.value || 0.1, 0.2),
                         type: edge.type,
                         mint: edge.mint,
                         ticker: edge.ticker,
