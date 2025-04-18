@@ -18,7 +18,7 @@ function tippyFactory(ref: any, content: any) {
         interactive: true,
         appendTo: document.body,
         allowHTML: true,
-        offset: [-75, -30],
+        offset: [-50, -30],
     });
 }
 
@@ -299,26 +299,33 @@ const NetworkGraph: React.FC = () => {
             const nodeId = node.id();
             const pagination = paginationRef.current[nodeId];
             const ref = node.popperRef();
+            const zoom = cy.zoom();
+            const midWidth = Math.max(200, 500 * zoom);
+            const fontSize = Math.max(10, 14 * zoom);
             const tip = tippyFactory(ref, `
-                <div class="p-2 bg-gray-800 rounded-md" style="min-width: 500px;">
+                <div class="p-1 bg-gray-800 rounded-md" style="min-width: ${midWidth}px; font-size: ${fontSize}px;">
                     <p class="text-white text-center">${nodeId}</p>
                     <div class="grid grid-cols-2 gap-2">
                         <button class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-sm" 
+                            style="font-size: ${fontSize}px;"
                             onclick="expandInDesc('${nodeId}')"
                             ${!pagination?.inDesc?.hasMore ? 'disabled style="opacity: 0.5"' : ''}>
                             ↖️ ${pagination?.inDesc?.hasMore ? 'New' : 'No More'} Inflows
                         </button>
                         <button class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-sm" 
+                            style="font-size: ${fontSize}px;"
                             onclick="expandOutDesc('${nodeId}')"
                             ${!pagination?.outDesc?.hasMore ? 'disabled style="opacity: 0.5"' : ''}>
                             ↗️ ${pagination?.outDesc?.hasMore ? 'New' : 'No More'} Outflows
                         </button>
                         <button class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-sm" 
+                            style="font-size: ${fontSize}px;"
                             onclick="expandInAsc('${nodeId}')"
                             ${!pagination?.inAsc?.hasMore ? 'disabled style="opacity: 0.5"' : ''}>
                             ↙️ ${pagination?.inAsc?.hasMore ? 'Old' : 'No More'} Inflows
                         </button>
                         <button class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-sm" 
+                            style="font-size: ${fontSize}px;"
                             onclick="expandOutAsc('${nodeId}')"
                             ${!pagination?.outAsc?.hasMore ? 'disabled style="opacity: 0.5"' : ''}>
                             ↘️ ${pagination?.outAsc?.hasMore ? 'Old' : 'No More'} Outflows
@@ -659,8 +666,8 @@ const NetworkGraph: React.FC = () => {
                 </button>
             </form>
             {loading && (
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                    <div className="loading-spinner" />
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-black bg-opacity-50 p-4 rounded-lg">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
                 </div>
             )}
             {error && (
