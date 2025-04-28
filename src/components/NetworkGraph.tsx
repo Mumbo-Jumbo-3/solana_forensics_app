@@ -225,8 +225,9 @@ const NetworkGraph: React.FC = () => {
                 }
             ],
             layout: {
-                name: 'circle',
-                padding: 30
+                name: 'cose',
+                animate: false,
+                spacingFactor: 20
             }
         });
 
@@ -243,7 +244,7 @@ const NetworkGraph: React.FC = () => {
             await expandEdge(edge, cy);
         });
         */
-
+        /*
         cy.on('tap', 'node', async (evt) => {
             const node = evt.target as NodeSingular;
             const position = evt.position;
@@ -275,7 +276,7 @@ const NetworkGraph: React.FC = () => {
                 }
             }
         });
-
+        */
         cy.on('tap', 'edge', async (evt) => {
             const edge = evt.target;
             if (edge.data('isExpandable')) {
@@ -295,7 +296,6 @@ const NetworkGraph: React.FC = () => {
 
         cy.on('mouseover', 'node', function(evt) {
             const node = evt.target as NodeSingular;
-            //node.addClass('hover');
             const nodeId = node.id();
             const pagination = paginationRef.current[nodeId];
             const ref = node.popperRef();
@@ -307,27 +307,27 @@ const NetworkGraph: React.FC = () => {
                     <p class="text-white text-center">${nodeId}</p>
                     <div class="grid grid-cols-2 gap-2">
                         <button class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-sm" 
-                            style="font-size: ${fontSize}px;"
-                            onclick="expandInDesc('${nodeId}')"
-                            ${!pagination?.inDesc?.hasMore ? 'disabled style="opacity: 0.5"' : ''}>
+                            style="font-size: ${fontSize}px; ${!pagination?.inDesc?.hasMore ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                            onclick="${pagination?.inDesc?.hasMore ? `expandInDesc('${nodeId}')` : ''}"
+                            ${!pagination?.inDesc?.hasMore ? 'disabled' : ''}>
                             ↖️ ${pagination?.inDesc?.hasMore ? 'New' : 'No More'} Inflows
                         </button>
                         <button class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-sm" 
-                            style="font-size: ${fontSize}px;"
-                            onclick="expandOutDesc('${nodeId}')"
-                            ${!pagination?.outDesc?.hasMore ? 'disabled style="opacity: 0.5"' : ''}>
+                            style="font-size: ${fontSize}px; ${!pagination?.outDesc?.hasMore ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                            onclick="${pagination?.outDesc?.hasMore ? `expandOutDesc('${nodeId}')` : ''}"
+                            ${!pagination?.outDesc?.hasMore ? 'disabled' : ''}>
                             ↗️ ${pagination?.outDesc?.hasMore ? 'New' : 'No More'} Outflows
                         </button>
                         <button class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-sm" 
-                            style="font-size: ${fontSize}px;"
-                            onclick="expandInAsc('${nodeId}')"
-                            ${!pagination?.inAsc?.hasMore ? 'disabled style="opacity: 0.5"' : ''}>
+                            style="font-size: ${fontSize}px; ${!pagination?.inAsc?.hasMore ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                            onclick="${pagination?.inAsc?.hasMore ? `expandInAsc('${nodeId}')` : ''}"
+                            ${!pagination?.inAsc?.hasMore ? 'disabled' : ''}>
                             ↙️ ${pagination?.inAsc?.hasMore ? 'Old' : 'No More'} Inflows
                         </button>
                         <button class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-sm" 
-                            style="font-size: ${fontSize}px;"
-                            onclick="expandOutAsc('${nodeId}')"
-                            ${!pagination?.outAsc?.hasMore ? 'disabled style="opacity: 0.5"' : ''}>
+                            style="font-size: ${fontSize}px; ${!pagination?.outAsc?.hasMore ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                            onclick="${pagination?.outAsc?.hasMore ? `expandOutAsc('${nodeId}')` : ''}"
+                            ${!pagination?.outAsc?.hasMore ? 'disabled' : ''}>
                             ↘️ ${pagination?.outAsc?.hasMore ? 'Old' : 'No More'} Outflows
                         </button>
                     </div>
@@ -413,7 +413,7 @@ const NetworkGraph: React.FC = () => {
                 
                 cy.layout({
                     name: 'cose',
-                    animate:false,
+                    animate: false,
                     spacingFactor: 5,
                 }).run();
 
@@ -615,7 +615,8 @@ const NetworkGraph: React.FC = () => {
             // Add initial nodes to tracking set
             data.nodes.forEach(node => existingNodes.add(node.pubkey));
             data.edges.forEach(edge => existingEdges.add(`${edge.txId}-${edge.source}-${edge.target}-${edge.mint}-${edge.amount}`));
-            
+            console.log('existingNodes', existingNodes);
+            console.log('existingEdges', existingEdges);
         } catch (error) {
             console.error('Error fetching initial data:', error);
             setError('Failed to fetch network data');
